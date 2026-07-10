@@ -69,3 +69,32 @@ type RobotState struct {
     navigation Navigation
 }
 ```
+
+
+Memo
+
+생각하는 대략적인 구조.
+Receiver단 - zenoh로 부터 읽어서 chan으로 쏜다.
+
+Aggregator단 - 
+캐시 struct 에는 sync.Mutex가 좋을까 sync.Map이 좋을까?
+왜냐면 Pose가 상당수 Mutex를 다 차지할 것 같아서.
+
+
+Publisher단 - 토픽별로 publish하는 구조.
+/pose > 10Hz > current value
+/battery > publish notify > current value
+/navigation > if queue is not empty > queued value
+/robot_state > battery와 navigation이 발행할 당시의 snapshot value를 queue? > seq와
+우선순위 (nav > battery)에 따라서 heap에 넣었다가 발행 ?
+e.g., PublishEvent{seq int or timestamp, priority int, data RobotState} > push heap > pop heap >
+validate last published seq > publish > update last published seq
+
+### Design Comparison: heap vs queue+slot
+
+|                                    | heap                | queue+slot              |
+| ---------------------------------- | ------------------- | ----------------------- |
+| priority 3단계 이상                | ✓ 유리              | ✗                       |
+| 2클래스 고정 + 토픽 증가           | 동작함              | ✓ 더 단순               |
+| 코드 복잡도                        | 정렬 + drop 로직    | O(1), 의도 명확         |
+
